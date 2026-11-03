@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>島ねこ巡礼 - 大崎下島</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; background-color: #fdf6e3; color: #5c4b51; }
+        .stamp-mark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            color: #ef4444;
+            border: 4px solid #ef4444;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            padding: 2px 12px;
+            opacity: 0.8;
+            pointer-events: none;
+            z-index: 10;
+        }
+        /* 発見時のアニメーション */
+        @keyframes stamp-pop {
+            0% { transform: translate(-50%, -50%) rotate(-15deg) scale(2); opacity: 0; }
+            50% { transform: translate(-50%, -50%) rotate(-15deg) scale(0.9); opacity: 1; }
+            100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.8; }
+        }
+        .animate-stamp { animation: stamp-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    </style>
+</head>
+<body class="w-full min-h-screen pb-10">
+
+    <!-- ヘッダー -->
+    <header class="bg-orange-500 text-white text-center py-4 shadow-md sticky top-0 z-40">
+        <h1 class="text-xl font-black tracking-widest">🐾 島ねこ巡礼 🐾</h1>
+        <p class="text-xs font-bold mt-1 opacity-90">大崎下島のねこを探す旅</p>
+    </header>
+
+    <!-- エリア切り替えタブ -->
+    <div class="flex justify-center gap-2 p-4 sticky top-[68px] bg-[#fdf6e3]/95 backdrop-blur-sm z-30 border-b border-orange-200">
+        <button onclick="switchTab('kubi')" id="tab-kubi" class="area-tab flex-1 py-2 rounded-full font-bold text-sm bg-orange-500 text-white shadow-md transition-colors">久比</button>
+        <button onclick="switchTab('mitarai')" id="tab-mitarai" class="area-tab flex-1 py-2 rounded-full font-bold text-sm bg-white text-orange-500 border-2 border-orange-500 shadow-sm transition-colors">御手洗</button>
+        <button onclick="switchTab('ocho')" id="tab-ocho" class="area-tab flex-1 py-2 rounded-full font-bold text-sm bg-white text-orange-500 border-2 border-orange-500 shadow-sm transition-colors">大長</button>
+    </div>
+
+    <!-- コンテンツエリア -->
+    <main class="p-4 max-w-lg mx-auto">
+        <div class="flex justify-between items-end mb-4 px-2">
+            <h2 id="current-area-title" class="text-lg font-black text-orange-800 border-b-4 border-orange-300 pb-1">久比エリア</h2>
+            <p class="text-sm font-bold text-gray-500">発見: <span id="progress-text" class="text-orange-600 text-lg">0/0</span></p>
+        </div>
+
+        <!-- マス目（グリッド） -->
+        <div id="grid-container" class="grid grid-cols-2 gap-3">
+            <!-- JSで動的に生成されます -->
+        </div>
+
+        <!-- テスト用リセットボタン（本番では隠すか削除） -->
+        <div class="mt-12 text-center">
+            <button onclick="resetData()" class="text-xs text-gray-400 underline">巡礼データをリセットする</button>
+        </div>
+    </main>
+
+    <!-- 発見ポップアップ（モーダル） -->
+    <div id="popup-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative text-center border-4 border-orange-400 transform scale-95 transition-transform duration-300" id="popup-content">
+            <p class="text-orange-500 font-black text-sm mb-2 animate-bounce">＼ 見つけたニャ！ ／</p>
+            <h3 id="popup-name" class="text-2xl font-black text-gray-800 mb-4"></h3>
+            <div class="bg-orange-50 rounded-2xl p-4 mb-4 border border-orange-100 flex justify-center">
+                <!-- 本番環境では実際の画像パスになります -->
+                <div class="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-4xl shadow-inner overflow-hidden">
+                    <img id="popup-img" src="" alt="ねこ" class="w-full h-full object-contain hidden">
+                    <span id="popup-emoji">🐈</span>
+                </div>
+            </div>
+            <button onclick="closePopup()" class="bg-orange-500 text-white px-10 py-3 rounded-full font-bold text-lg shadow-md active:scale-95">記録する</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 巡礼マスターデータ（画像パスは既存のものと合わせてください）
+        // ==========================================
+        const JYUNREI_DATA = {
+            "kubi": {
+                name: "久比エリア",
+                cats: [
+                    { id: "haruneko", name: "料理猫", hint: "まめな食堂のどこかにいるらしい…", img: "./haruneko.png" },
+                    { id: "kanineko", name: "カニ猫", hint: "夜にカニがいそうな海岸沿い", img: "./kanineko.png" },
+                    { id: "kubi_white1", name: "白ねこ", hint: "〇〇神社の見晴らしの良いベンチ", img: "./white_cat.png", isNormal: true },
+                    { id: "kubi_white2", name: "白ねこ", hint: "路地裏の古い井戸のそば", img: "./white_cat.png", isNormal: true }
+                ]
+            },
+            "mitarai": {
+                name: "御手洗エリア",
+                cats: [
+                    { id: "mitarai_white1", name: "白ねこ", hint: "時計店が並ぶレトロな通り", img: "./white_cat.png", isNormal: true },
+                    { id: "mitarai_boss", name: "御手洗の主", hint: "歴史ある建物の縁側", img: "./boss.png" }
+                ]
+            },
+            "ocho": {
+                name: "大長エリア",
+                cats: [
+                    { id: "yumineko", name: "ゆみ猫", hint: "みかん畑へと続く道の入り口", img: "./yumi.png" }
+                ]
+            }
+        };
+
+        let currentTab = "kubi";
+        let unlockedCats = JSON.parse(localStorage.getItem('jyunrei_zukan')) || [];
+
+        // ページ読み込み時の処理（NFCからのアクセス判定）
+        window.onload = () => {
+            checkUrlParameter();
+            renderGrid();
+        };
+
+        // URLパラメータ（?cat=〇〇）のチェック
+        function checkUrlParameter() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const scanCatId = urlParams.get('cat');
+
+            if (scanCatId) {
+                // すべてのデータから該当する猫を探す
+                let foundCat = null;
+                for (let area in JYUNREI_DATA) {
+                    let cat = JYUNREI_DATA[area].cats.find(c => c.id === scanCatId);
+                    if (cat) {
+                        foundCat = cat;
+                        currentTab = area; // 発見した猫のエリアタブを自動選択
+                        break;
+                    }
+                }
+
+                if (foundCat) {
+                    // まだ発見していなければセーブデータに追加
+                    let isNew = false;
+                    if (!unlockedCats.includes(scanCatId)) {
+                        unlockedCats.push(scanCatId);
+                        localStorage.setItem('jyunrei_zukan', JSON.stringify(unlockedCats));
+                        isNew = true;
+                    }
+                    
+                    // 発見ポップアップを表示
+                    showPopup(foundCat, isNew);
+                }
+
+                // ポップアップを出した後は、URLからパラメータを消す（リロード対策）
+                // 例: jyunrei.html?cat=haruneko -> jyunrei.html
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        }
+
+        // タブ切り替え処理
+        function switchTab(areaKey) {
+            currentTab = areaKey;
+            
+            // タブの見た目更新
+            document.querySelectorAll('.area-tab').forEach(btn => {
+                btn.classList.replace('bg-orange-500', 'bg-white');
+                btn.classList.replace('text-white', 'text-orange-500');
+            });
+            const activeBtn = document.getElementById(`tab-${areaKey}`);
+            activeBtn.classList.replace('bg-white', 'bg-orange-500');
+            activeBtn.classList.replace('text-orange-500', 'text-white');
+
+            renderGrid();
+        }
+
+        // マス目の描画
+        function renderGrid() {
+            const areaData = JYUNREI_DATA[currentTab];
+            document.getElementById('current-area-title').innerText = areaData.name;
+            
+            const grid = document.getElementById('grid-container');
+            grid.innerHTML = '';
+
+            let areaDiscovered = 0;
+
+            areaData.cats.forEach(cat => {
+                const isDiscovered = unlockedCats.includes(cat.id);
+                if (isDiscovered) areaDiscovered++;
+
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl shadow-sm border-2 border-orange-100 p-3 relative flex flex-col items-center justify-center text-center aspect-square overflow-hidden";
+
+                if (isDiscovered) {
+                    // 発見済み（済マーク＋イラスト）
+                    card.classList.replace('border-orange-100', 'border-orange-300');
+                    card.innerHTML = `
+                        <p class="text-xs font-bold text-orange-800 mb-2">${cat.name}</p>
+                        <div class="flex-1 w-full flex items-center justify-center">
+                            <!-- 画像がある場合はimgタグを表示、無ければ絵文字 -->
+                            <img src="${cat.img}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="max-h-16 object-contain filter drop-shadow-md">
+                            <span class="text-4xl hidden">🐈</span>
+                        </div>
+                        <div class="stamp-mark animate-stamp">済</div>
+                    `;
+                } else {
+                    // 未発見（ヒントのみ）
+                    card.className += " bg-gray-50 opacity-80";
+                    card.innerHTML = `
+                        <div class="w-10 h-10 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xl font-black mb-2">？</div>
+                        <p class="text-[10px] font-bold text-gray-500 leading-tight">ヒント:<br>${cat.hint}</p>
+                    `;
+                }
+                grid.appendChild(card);
+            });
+
+            document.getElementById('progress-text').innerText = `${areaDiscovered}/${areaData.cats.length}`;
+        }
+
+        // ポップアップ関連
+        function showPopup(cat, isNew) {
+            const modal = document.getElementById('popup-modal');
+            const content = document.getElementById('popup-content');
+            
+            document.getElementById('popup-name').innerText = cat.name;
+            
+            const imgEl = document.getElementById('popup-img');
+            const emojiEl = document.getElementById('popup-emoji');
+            
+            // 画像パスを設定（画像が存在しない場合はエラーで絵文字にフォールバック）
+            imgEl.src = cat.img;
+            imgEl.classList.remove('hidden');
+            emojiEl.classList.add('hidden');
+            
+            imgEl.onerror = () => {
+                imgEl.classList.add('hidden');
+                emojiEl.classList.remove('hidden');
+            };
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // ポップアップ出現アニメーション
+            setTimeout(() => {
+                content.classList.replace('scale-95', 'scale-100');
+            }, 10);
+        }
+
+        function closePopup() {
+            document.getElementById('popup-modal').classList.add('hidden');
+            document.getElementById('popup-modal').classList.remove('flex');
+            renderGrid(); // リロードなしで最新のスタンプ状況を反映
+        }
+
+        // テスト用データリセット
+        function resetData() {
+            if (confirm("巡礼の記録をすべてリセットしますか？")) {
+                localStorage.removeItem('jyunrei_zukan');
+                unlockedCats = [];
+                renderGrid();
+                alert("リセットしました！");
+            }
+        }
+    </script>
+</body>
+</html>
