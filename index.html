@@ -3,261 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>島ねこ巡礼 - 大崎下島</title>
-    <!-- Tailwind CSS (CDN) -->
+    <title>島ねこ御朱印帳</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; background-color: #fdf6e3; color: #5c4b51; }
-        .stamp-mark {
+        :root {
+            --paper-bg: #fdfbf7;
+        }
+        body {
+            font-family: 'Yuji Syuku', serif;
+            background-color: #d9d0c1;
+            overflow: hidden;
+            touch-action: pan-y;
+        }
+        
+        /* 御朱印帳全体を3D空間にする */
+        .book-wrapper {
+            perspective: 1500px;
+        }
+
+        /* ページと表紙のベーススタイル */
+        .goshuin-page {
+            background-color: var(--paper-bg);
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+            box-shadow: 2px 2px 0px #eae3d5, 4px 4px 0px #e0d8c8, 6px 6px 0px #d6cdbc, 12px 12px 20px rgba(0,0,0,0.2);
+            border-radius: 4px 12px 12px 4px;
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-15deg);
-            color: #ef4444;
-            border: 4px solid #ef4444;
-            border-radius: 8px;
-            font-size: 1.5rem;
-            font-weight: 900;
-            padding: 2px 12px;
-            opacity: 0.8;
-            pointer-events: none;
+            top: 0; left: 0; width: 100%; height: 100%;
+            padding-left: 24px;
+            /* ★ポイント：回転の軸を常に「左の綴じ目」に固定する */
+            transform-origin: left center;
+            backface-visibility: hidden;
+            transform-style: preserve-3d;
+        }
+
+        /* 背表紙（布） */
+        .goshuin-page::before {
+            content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 24px;
+            background: linear-gradient(to right, #2c3e50, #34495e);
+            border-radius: 4px 0 0 4px;
+            box-shadow: 3px 0 6px rgba(0,0,0,0.3);
             z-index: 10;
         }
-        /* 発見時のアニメーション */
-        @keyframes stamp-pop {
-            0% { transform: translate(-50%, -50%) rotate(-15deg) scale(2); opacity: 0; }
-            50% { transform: translate(-50%, -50%) rotate(-15deg) scale(0.9); opacity: 1; }
-            100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 0.8; }
+
+        /* 表紙専用の装飾 */
+        #cover-page {
+            z-index: 40;
+            background-size: cover;
+            background-position: center;
+            background-color: #637b89;
         }
-        .animate-stamp { animation: stamp-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        #cover-title-plate {
+            background-color: rgba(253, 251, 247, 0.9);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            border: 2px solid #bdae93;
+        }
+
+        /* 表紙の開閉アニメーション */
+        .flip-open { animation: flipLeft 0.6s ease-in-out forwards; pointer-events: none; }
+        .flip-close { animation: flipRight 0.6s ease-in-out forwards; }
+        @keyframes flipLeft {
+            0% { transform: rotateY(0deg); opacity: 1; }
+            100% { transform: rotateY(-100deg); opacity: 0; }
+        }
+        @keyframes flipRight {
+            0% { transform: rotateY(-100deg); opacity: 0; }
+            100% { transform: rotateY(0deg); opacity: 1; }
+        }
+
+        /* ★新実装：本物のノートのページめくり挙動★ */
+        .turn-next-out { animation: turnNextOut 0.35s ease-in forwards; pointer-events: none; }
+        .turn-next-in  { animation: turnNextIn 0.2s ease-out forwards; }
+        .turn-prev-in  { animation: turnPrevIn 0.4s ease-out forwards; }
+        
+        /* 次へ：今のページが左の綴じ目に向かってパタンと倒れて消える */
+        @keyframes turnNextOut {
+            0% { transform: rotateY(0deg); opacity: 1; }
+            100% { transform: rotateY(-90deg); opacity: 0.3; } 
+        }
+        /* 次へ：めくられた下にある「次のページ」がフワッと現れる */
+        @keyframes turnNextIn {
+            0% { transform: rotateY(0deg); opacity: 0; }
+            100% { transform: rotateY(0deg); opacity: 1; }
+        }
+        /* 戻る：左側（画面外）にあった「前のページ」が、右に向かってパタンと倒れてくる */
+        @keyframes turnPrevIn {
+            0% { transform: rotateY(-90deg); opacity: 1; }
+            100% { transform: rotateY(0deg); opacity: 1; }
+        }
+
+        /* インクの滲みアニメーション */
+        .ink-blend { mix-blend-mode: multiply; pointer-events: auto; }
+        @keyframes ink-bleed {
+            0% { opacity: 0; filter: blur(12px); transform: scale(0.95); }
+            50% { opacity: 0.8; filter: blur(3px); transform: scale(1.02); }
+            100% { opacity: 1; filter: blur(0px); transform: scale(1); }
+        }
+        .animate-ink { animation: ink-bleed 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+        
+        .tategaki { writing-mode: vertical-rl; text-orientation: upright; }
     </style>
 </head>
-<body class="w-full min-h-screen pb-10">
+<body class="w-full h-screen flex flex-col items-center justify-center p-4 relative" id="body-container">
 
     <!-- ヘッダー -->
-    <header class="bg-orange-500 text-white text-center py-4 shadow-md sticky top-0 z-40">
-        <h1 class="text-xl font-black tracking-widest">🐾 島ねこ巡礼 🐾</h1>
-        <p class="text-xs font-bold mt-1 opacity-90">大崎下島のねこを探す旅</p>
-    </header>
-
-    <!-- エリア切り替えタブ -->
-    <div class="flex justify-center gap-2 p-4 sticky top-[68px] bg-[#fdf6e3]/95 backdrop-blur-sm z-30 border-b border-orange-200">
-        <button onclick="switchTab('kubi')" id="tab-kubi" class="area-tab flex-1 py-2 rounded-full font-bold text-sm bg-orange-500 text-white shadow-md transition-colors">久比</button>
-        <button onclick="switchTab('mitarai')" id="tab-mitarai" class="area-tab flex-1 py-2 rounded-full font-bold text-sm bg-white text-orange-500 border-2 border-orange-500 shadow-sm transition-colors">御手洗</button>
-        <button onclick="switchTab('ocho')" id="tab-ocho" class="area-tab flex-1 py-2 rounded-full font-bold text-sm bg-white text-orange-500 border-2 border-orange-500 shadow-sm transition-colors">大長</button>
+    <div class="absolute top-4 left-4 z-50">
+        <button onclick="openSettings()" class="bg-white/80 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-gray-300 active:scale-95">⚙️ 表紙設定</button>
+    </div>
+    <div class="absolute top-4 left-0 w-full text-center z-10 pointer-events-none">
+        <h1 class="text-xl font-bold tracking-widest text-[#3a312a]" id="header-progress" style="opacity: 0;">
+            久比エリア <span id="progress-text" class="text-3xl text-orange-700 mx-1">0/10</span> <span class="text-sm">巡礼済</span>
+        </h1>
     </div>
 
-    <!-- コンテンツエリア -->
-    <main class="p-4 max-w-lg mx-auto">
-        <div class="flex justify-between items-end mb-4 px-2">
-            <h2 id="current-area-title" class="text-lg font-black text-orange-800 border-b-4 border-orange-300 pb-1">久比エリア</h2>
-            <p class="text-sm font-bold text-gray-500">発見: <span id="progress-text" class="text-orange-600 text-lg">0/0</span></p>
+    <!-- 御朱印帳本体（3D空間） -->
+    <div id="book-container" class="book-wrapper w-full max-w-md aspect-[3/4] relative mt-8">
+        
+        <!-- 【表紙】 -->
+        <div id="cover-page" class="goshuin-page flex items-center justify-center cursor-pointer shadow-2xl">
+            <div id="cover-title-plate" class="w-16 h-4/5 flex items-center justify-center tategaki absolute right-8 top-1/2 transform -translate-y-1/2">
+                <span class="text-3xl font-black text-gray-800 tracking-widest">島ねこ御朱印帳</span>
+            </div>
+            <div class="absolute bottom-4 left-8 text-white text-xs bg-black/50 px-3 py-1 rounded-full animate-pulse">タップして開く</div>
         </div>
 
-        <!-- マス目（グリッド） -->
-        <div id="grid-container" class="grid grid-cols-2 gap-3">
-            <!-- JSで動的に生成されます -->
+        <!-- 【中身のページ】 -->
+        <div id="inner-page" class="goshuin-page pointer-events-none" style="opacity: 0; z-index: 10;">
+            <div id="page-content" class="w-full h-full relative p-4 flex items-center justify-center">
+                <!-- JSで描画 -->
+            </div>
         </div>
 
-        <!-- テスト用リセットボタン（本番では隠すか削除） -->
-        <div class="mt-12 text-center">
-            <button onclick="resetData()" class="text-xs text-gray-400 underline">巡礼データをリセットする</button>
-        </div>
-    </main>
+    </div>
 
-    <!-- 発見ポップアップ（モーダル） -->
-    <div id="popup-modal" class="fixed inset-0 bg-black/70 z-50 hidden flex-col items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative text-center border-4 border-orange-400 transform scale-95 transition-transform duration-300" id="popup-content">
-            <p class="text-orange-500 font-black text-sm mb-2 animate-bounce">＼ 見つけたニャ！ ／</p>
-            <h3 id="popup-name" class="text-2xl font-black text-gray-800 mb-4"></h3>
-            <div class="bg-orange-50 rounded-2xl p-4 mb-4 border border-orange-100 flex justify-center">
-                <!-- 本番環境では実際の画像パスになります -->
-                <div class="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-4xl shadow-inner overflow-hidden">
-                    <img id="popup-img" src="" alt="ねこ" class="w-full h-full object-contain hidden">
-                    <span id="popup-emoji">🐈</span>
+    <!-- フッター -->
+    <div class="absolute bottom-6 left-0 w-full text-center z-10 pointer-events-none" id="footer-swipe" style="opacity: 0;">
+        <p class="text-sm font-bold text-[#5c544d] opacity-70">← スワイプでめくる →</p>
+        <button onclick="closeBook()" class="mt-2 text-xs text-gray-500 bg-white/50 px-3 py-1 rounded-full pointer-events-auto">表紙に戻る</button>
+    </div>
+
+    <!-- ★ 表紙設定モーダル ★ -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity">
+        <div class="bg-[#fdfbf7] rounded-xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <h2 class="text-xl font-black text-gray-800 mb-4">表紙をきせかえる</h2>
+            
+            <div class="mb-4">
+                <p class="text-xs text-gray-500 font-bold mb-2">スマホの写真アルバムから選ぶ</p>
+                <label class="block bg-orange-500 text-white py-3 rounded-lg font-bold shadow-md active:scale-95 cursor-pointer">
+                    📷 写真を選択
+                    <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                </label>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-gray-500 font-bold mb-2">テンプレートから選ぶ</p>
+                <div class="flex gap-2 justify-center">
+                    <div onclick="setCoverColor('#637b89')" class="w-12 h-12 bg-[#637b89] rounded cursor-pointer border-2 border-gray-300"></div>
+                    <div onclick="setCoverColor('#8b4513')" class="w-12 h-12 bg-[#8b4513] rounded cursor-pointer border-2 border-gray-300"></div>
+                    <div onclick="setCoverColor('#b04a5a')" class="w-12 h-12 bg-[#b04a5a] rounded cursor-pointer border-2 border-gray-300"></div>
                 </div>
             </div>
-            <button onclick="closePopup()" class="bg-orange-500 text-white px-10 py-3 rounded-full font-bold text-lg shadow-md active:scale-95">記録する</button>
+
+            <button onclick="closeSettings()" class="w-full bg-gray-300 text-gray-800 py-3 rounded-full font-bold active:scale-95">とじる</button>
+        </div>
+    </div>
+
+    <!-- 歴史解説モーダル -->
+    <div id="history-modal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity">
+        <div class="bg-[#fdfbf7] rounded-xl p-6 w-full max-w-sm shadow-2xl relative border-l-8 border-orange-500">
+            <h2 id="modal-title" class="text-xl font-black text-gray-800 mb-4 border-b-2 border-orange-200 pb-2"></h2>
+            <p id="modal-text" class="text-sm font-medium text-gray-700 leading-relaxed mb-6"></p>
+            <div id="modal-haru" class="bg-orange-50 p-3 rounded-lg border border-orange-200 hidden">
+                <p id="modal-haru-text" class="text-[13px] font-bold text-orange-800"></p>
+            </div>
+            <button onclick="closeModal()" class="mt-6 w-full bg-gray-800 text-white py-3 rounded-full font-bold active:scale-95">もどる</button>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // 巡礼マスターデータ（画像パスは既存のものと合わせてください）
-        // ==========================================
-        const JYUNREI_DATA = {
-            "kubi": {
-                name: "久比エリア",
-                cats: [
-                    { id: "haruneko", name: "料理猫", hint: "まめな食堂のどこかにいるらしい…", img: "./haruneko.png" },
-                    { id: "kanineko", name: "カニ猫", hint: "夜にカニがいそうな海岸沿い", img: "./kanineko.png" },
-                    { id: "kubi_white1", name: "白ねこ", hint: "〇〇神社の見晴らしの良いベンチ", img: "./white_cat.png", isNormal: true },
-                    { id: "kubi_white2", name: "白ねこ", hint: "路地裏の古い井戸のそば", img: "./white_cat.png", isNormal: true }
-                ]
-            },
-            "mitarai": {
-                name: "御手洗エリア",
-                cats: [
-                    { id: "mitarai_white1", name: "白ねこ", hint: "時計店が並ぶレトロな通り", img: "./white_cat.png", isNormal: true },
-                    { id: "mitarai_boss", name: "御手洗の主", hint: "歴史ある建物の縁側", img: "./boss.png" }
-                ]
-            },
-            "ocho": {
-                name: "大長エリア",
-                cats: [
-                    { id: "yumineko", name: "ゆみ猫", hint: "みかん畑へと続く道の入り口", img: "./yumi.png" }
-                ]
+        const GOSHUIN_DATA = {
+            "mamena": {
+                id: "mamena", area: "kubi", pageNumber: 1, 
+                image: "./n1.png",
+                history: {
+                    title: "まめな食堂と久比の記憶",
+                    text: "ここ久比地区は、かつて多くの船が行き交い、温かなコミュニティがありました。",
+                    haruMessage: "ハルさんより：「よう来てくれたね。」"
+                }
             }
         };
+        const TOTAL_PAGES = 10;
 
-        let currentTab = "kubi";
-        let unlockedCats = JSON.parse(localStorage.getItem('jyunrei_zukan')) || [];
+        let unlockedPages = JSON.parse(localStorage.getItem('goshuin_unlocked')) || [];
+        let currentPage = 1;
+        let isBookOpen = false;
 
-        // ページ読み込み時の処理（NFCからのアクセス判定）
+        // 表紙の復元
+        const savedCover = localStorage.getItem('goshuin_cover_image');
+        const savedColor = localStorage.getItem('goshuin_cover_color');
+        const coverEl = document.getElementById('cover-page');
+        if (savedCover) { coverEl.style.backgroundImage = `url(${savedCover})`; }
+        else if (savedColor) { coverEl.style.backgroundColor = savedColor; }
+
         window.onload = () => {
-            checkUrlParameter();
-            renderGrid();
+            updateProgress();
+            renderPage(currentPage, false);
+            setupSwipe();
+            checkNfcScan();
         };
 
-        // URLパラメータ（?cat=〇〇）のチェック
-        function checkUrlParameter() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const scanCatId = urlParams.get('cat');
+        // --- 表紙の開閉 ---
+        coverEl.addEventListener('click', () => {
+            if(isBookOpen) return;
+            isBookOpen = true;
+            coverEl.classList.remove('flip-close');
+            coverEl.classList.add('flip-open');
+            
+            const innerPage = document.getElementById('inner-page');
+            innerPage.style.opacity = '1';
+            innerPage.classList.remove('pointer-events-none');
+            
+            setTimeout(() => {
+                document.getElementById('header-progress').style.opacity = '1';
+                document.getElementById('footer-swipe').style.opacity = '1';
+            }, 300);
+        });
 
-            if (scanCatId) {
-                // すべてのデータから該当する猫を探す
-                let foundCat = null;
-                for (let area in JYUNREI_DATA) {
-                    let cat = JYUNREI_DATA[area].cats.find(c => c.id === scanCatId);
-                    if (cat) {
-                        foundCat = cat;
-                        currentTab = area; // 発見した猫のエリアタブを自動選択
-                        break;
-                    }
+        function closeBook() {
+            isBookOpen = false;
+            document.getElementById('header-progress').style.opacity = '0';
+            document.getElementById('footer-swipe').style.opacity = '0';
+            coverEl.classList.remove('flip-open');
+            coverEl.classList.add('flip-close');
+            
+            const innerPage = document.getElementById('inner-page');
+            innerPage.classList.add('pointer-events-none');
+            setTimeout(() => { innerPage.style.opacity = '0'; }, 500);
+        }
+
+        // --- ★ ページめくり処理の修正 ★ ---
+        function setupSwipe() {
+            let startX = 0;
+            const innerPage = document.getElementById('inner-page');
+
+            innerPage.addEventListener('touchstart', (e) => { startX = e.changedTouches[0].screenX; });
+            innerPage.addEventListener('touchend', (e) => {
+                if(!isBookOpen) return;
+                let endX = e.changedTouches[0].screenX;
+                let diff = startX - endX;
+
+                if (diff > 50 && currentPage < TOTAL_PAGES) {
+                    turnPage(currentPage + 1, 'next');
+                } else if (diff < -50 && currentPage > 1) {
+                    turnPage(currentPage - 1, 'prev');
+                } else if (diff < -50 && currentPage === 1) {
+                    closeBook();
                 }
+            });
+        }
 
-                if (foundCat) {
-                    // まだ発見していなければセーブデータに追加
-                    let isNew = false;
-                    if (!unlockedCats.includes(scanCatId)) {
-                        unlockedCats.push(scanCatId);
-                        localStorage.setItem('jyunrei_zukan', JSON.stringify(unlockedCats));
-                        isNew = true;
-                    }
+        function turnPage(newPage, direction) {
+            const innerPage = document.getElementById('inner-page');
+            
+            // アニメーションのリセット
+            innerPage.classList.remove('turn-next-out', 'turn-next-in', 'turn-prev-in');
+            void innerPage.offsetWidth; 
+            
+            if (direction === 'next') {
+                // 【次へ進む】いま見ているページが左に向かって倒れる
+                innerPage.classList.add('turn-next-out');
+                setTimeout(() => {
+                    currentPage = newPage;
+                    renderPage(currentPage, false);
+                    innerPage.classList.remove('turn-next-out');
+                    // 倒れた後に下から「次のページ」が現れる
+                    innerPage.classList.add('turn-next-in'); 
+                }, 350); 
+            } else {
+                // 【前に戻る】中身を先に「前のページ」に書き換える
+                currentPage = newPage;
+                renderPage(currentPage, false);
+                // 画面外の左側にあった「前のページ」が、右に向かってパタンと倒れてくる
+                innerPage.classList.add('turn-prev-in');
+            }
+        }
+
+        // --- 表紙設定 ---
+        function openSettings() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+        function closeSettings() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_SIZE = 800;
+                    let width = img.width; let height = img.height;
+                    if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } 
+                    else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+                    canvas.width = width; canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
                     
-                    // 発見ポップアップを表示
-                    showPopup(foundCat, isNew);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    localStorage.setItem('goshuin_cover_image', dataUrl);
+                    localStorage.removeItem('goshuin_cover_color');
+                    coverEl.style.backgroundImage = `url(${dataUrl})`;
+                    coverEl.style.backgroundColor = 'transparent';
+                    closeSettings();
                 }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
 
-                // ポップアップを出した後は、URLからパラメータを消す（リロード対策）
-                // 例: jyunrei.html?cat=haruneko -> jyunrei.html
+        function setCoverColor(colorCode) {
+            localStorage.setItem('goshuin_cover_color', colorCode);
+            localStorage.removeItem('goshuin_cover_image');
+            coverEl.style.backgroundImage = 'none';
+            coverEl.style.backgroundColor = colorCode;
+            closeSettings();
+        }
+
+        function checkNfcScan() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const scanId = urlParams.get('cat');
+            if (scanId && GOSHUIN_DATA[scanId]) {
+                currentPage = GOSHUIN_DATA[scanId].pageNumber; 
+                setTimeout(() => coverEl.click(), 500);
+
+                if (!unlockedPages.includes(scanId)) {
+                    unlockedPages.push(scanId);
+                    localStorage.setItem('goshuin_unlocked', JSON.stringify(unlockedPages));
+                    setTimeout(() => renderPage(currentPage, true), 1000); 
+                } else {
+                    renderPage(currentPage, false);
+                }
                 window.history.replaceState(null, '', window.location.pathname);
             }
         }
 
-        // タブ切り替え処理
-        function switchTab(areaKey) {
-            currentTab = areaKey;
-            
-            // タブの見た目更新
-            document.querySelectorAll('.area-tab').forEach(btn => {
-                btn.classList.replace('bg-orange-500', 'bg-white');
-                btn.classList.replace('text-white', 'text-orange-500');
-            });
-            const activeBtn = document.getElementById(`tab-${areaKey}`);
-            activeBtn.classList.replace('bg-white', 'bg-orange-500');
-            activeBtn.classList.replace('text-orange-500', 'text-white');
+        function renderPage(pageNum, isNewDiscovery) {
+            const content = document.getElementById('page-content');
+            content.innerHTML = '';
+            let pageData = null;
+            for (const key in GOSHUIN_DATA) { if (GOSHUIN_DATA[key].pageNumber === pageNum) pageData = GOSHUIN_DATA[key]; }
 
-            renderGrid();
-        }
-
-        // マス目の描画
-        function renderGrid() {
-            const areaData = JYUNREI_DATA[currentTab];
-            document.getElementById('current-area-title').innerText = areaData.name;
-            
-            const grid = document.getElementById('grid-container');
-            grid.innerHTML = '';
-
-            let areaDiscovered = 0;
-
-            areaData.cats.forEach(cat => {
-                const isDiscovered = unlockedCats.includes(cat.id);
-                if (isDiscovered) areaDiscovered++;
-
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl shadow-sm border-2 border-orange-100 p-3 relative flex flex-col items-center justify-center text-center aspect-square overflow-hidden";
-
-                if (isDiscovered) {
-                    // 発見済み（済マーク＋イラスト）
-                    card.classList.replace('border-orange-100', 'border-orange-300');
-                    card.innerHTML = `
-                        <p class="text-xs font-bold text-orange-800 mb-2">${cat.name}</p>
-                        <div class="flex-1 w-full flex items-center justify-center">
-                            <!-- 画像がある場合はimgタグを表示、無ければ絵文字 -->
-                            <img src="${cat.img}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="max-h-16 object-contain filter drop-shadow-md">
-                            <span class="text-4xl hidden">🐈</span>
-                        </div>
-                        <div class="stamp-mark animate-stamp">済</div>
-                    `;
-                } else {
-                    // 未発見（ヒントのみ）
-                    card.className += " bg-gray-50 opacity-80";
-                    card.innerHTML = `
-                        <div class="w-10 h-10 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xl font-black mb-2">？</div>
-                        <p class="text-[10px] font-bold text-gray-500 leading-tight">ヒント:<br>${cat.hint}</p>
-                    `;
-                }
-                grid.appendChild(card);
-            });
-
-            document.getElementById('progress-text').innerText = `${areaDiscovered}/${areaData.cats.length}`;
-        }
-
-        // ポップアップ関連
-        function showPopup(cat, isNew) {
-            const modal = document.getElementById('popup-modal');
-            const content = document.getElementById('popup-content');
-            
-            document.getElementById('popup-name').innerText = cat.name;
-            
-            const imgEl = document.getElementById('popup-img');
-            const emojiEl = document.getElementById('popup-emoji');
-            
-            // 画像パスを設定（画像が存在しない場合はエラーで絵文字にフォールバック）
-            imgEl.src = cat.img;
-            imgEl.classList.remove('hidden');
-            emojiEl.classList.add('hidden');
-            
-            imgEl.onerror = () => {
-                imgEl.classList.add('hidden');
-                emojiEl.classList.remove('hidden');
-            };
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            
-            // ポップアップ出現アニメーション
-            setTimeout(() => {
-                content.classList.replace('scale-95', 'scale-100');
-            }, 10);
-        }
-
-        function closePopup() {
-            document.getElementById('popup-modal').classList.add('hidden');
-            document.getElementById('popup-modal').classList.remove('flex');
-            renderGrid(); // リロードなしで最新のスタンプ状況を反映
-        }
-
-        // テスト用データリセット
-        function resetData() {
-            if (confirm("巡礼の記録をすべてリセットしますか？")) {
-                localStorage.removeItem('jyunrei_zukan');
-                unlockedCats = [];
-                renderGrid();
-                alert("リセットしました！");
+            if (pageData && unlockedPages.includes(pageData.id)) {
+                const animClass = isNewDiscovery ? 'animate-ink' : '';
+                content.innerHTML = `<div class="relative w-full h-full flex flex-col items-center justify-center cursor-pointer" onclick="openModal('${pageData.id}')"><img src="${pageData.image}" class="w-full max-h-full object-contain ink-blend ${animClass} drop-shadow-sm"><div class="absolute bottom-2 bg-black/40 text-white text-[10px] px-3 py-1 rounded-full animate-pulse">👆 タップして小話を読む</div></div>`;
+            } else {
+                content.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center opacity-30"><p class="text-gray-500 text-lg">第 ${pageNum} 頁</p></div>`;
             }
         }
+        function updateProgress() { document.getElementById('progress-text').innerText = `${unlockedPages.length}/${TOTAL_PAGES}`; }
+        window.openModal = function(catId) {
+            const data = GOSHUIN_DATA[catId].history; if(!data) return;
+            document.getElementById('modal-title').innerText = data.title;
+            document.getElementById('modal-text').innerHTML = data.text;
+            document.getElementById('history-modal').classList.remove('hidden'); document.getElementById('history-modal').classList.add('flex');
+            setTimeout(() => document.getElementById('history-modal').classList.remove('opacity-0'), 10);
+        };
+        window.closeModal = function() {
+            document.getElementById('history-modal').classList.add('opacity-0');
+            setTimeout(() => { document.getElementById('history-modal').classList.add('hidden'); document.getElementById('history-modal').classList.remove('flex'); }, 300);
+        };
     </script>
 </body>
 </html>
