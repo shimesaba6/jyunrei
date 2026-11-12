@@ -99,7 +99,9 @@
     <div class="absolute top-4 left-4 z-50">
         <button onclick="openSettings()" class="bg-white/80 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-gray-300 active:scale-95">⚙️ 表紙設定</button>
     </div>
-    <div class="absolute top-4 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="header-progress" style="opacity: 0;">
+    
+    <!-- ★ 修正：top-4 から top-14 に変更し、表紙設定ボタンとの被りを解消 ★ -->
+    <div class="absolute top-14 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="header-progress" style="opacity: 0;">
         <h1 class="text-xl font-bold tracking-widest text-[#3a312a]">
             久比エリア <span id="progress-text" class="text-3xl text-orange-700 mx-1">0/10</span> <span class="text-sm">巡礼済</span>
         </h1>
@@ -290,7 +292,6 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // ★ 変更点：圧縮サイズを「800px → 1600px」に引き上げました
                     const MAX_SIZE = 1600;
                     
                     let width = img.width; let height = img.height;
@@ -299,7 +300,6 @@
                     canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // ★ 変更点：画質を「0.6(60%) → 0.85(85%)」に引き上げました
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
                     
                     localStorage.setItem('goshuin_cover_image', dataUrl);
@@ -347,12 +347,14 @@
 
             if (pageData && unlockedPages.includes(pageData.id)) {
                 const animClass = isNewDiscovery ? 'animate-ink' : '';
+                
+                // ★ 修正：画像を flex-1 で縮小し、テキストボタンを画像の下に完全分離して被りを防止 ★
                 content.innerHTML = `
-                    <div class="relative w-full h-full flex flex-col items-center justify-center cursor-pointer p-4 pb-12" onclick="openModal('${pageData.id}')">
-                        <div class="w-full flex-1 flex items-center justify-center relative">
-                            <img src="${pageData.image}" class="max-w-full max-h-full object-contain ink-blend ${animClass} drop-shadow-sm">
+                    <div class="w-full h-full flex flex-col items-center justify-center cursor-pointer pt-6 pb-4 pr-4 pl-2" onclick="openModal('${pageData.id}')">
+                        <div class="flex-1 w-full flex items-center justify-center overflow-hidden">
+                            <img src="${pageData.image}" class="w-[90%] h-[90%] object-contain ink-blend ${animClass} drop-shadow-sm">
                         </div>
-                        <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/40 text-white text-[10px] px-3 py-1 rounded-full animate-pulse whitespace-nowrap">
+                        <div class="mt-2 bg-black/40 text-white text-[10px] px-3 py-1 rounded-full animate-pulse whitespace-nowrap shrink-0">
                             👆 タップして小話を読む
                         </div>
                     </div>
