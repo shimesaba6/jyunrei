@@ -100,7 +100,6 @@
         <button onclick="openSettings()" class="bg-white/80 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-gray-300 active:scale-95">⚙️ 表紙設定</button>
     </div>
     
-    <!-- ★ 修正：top-4 から top-14 に変更し、表紙設定ボタンとの被りを解消 ★ -->
     <div class="absolute top-14 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="header-progress" style="opacity: 0;">
         <h1 class="text-xl font-bold tracking-widest text-[#3a312a]">
             久比エリア <span id="progress-text" class="text-3xl text-orange-700 mx-1">0/10</span> <span class="text-sm">巡礼済</span>
@@ -172,6 +171,15 @@
     </div>
 
     <script>
+        // --- 音声ファイルの準備 ---
+        const sndCat = new Audio('./catvoice2.mp3');
+        const sndOpen = new Audio('./bookopen.mp3');
+        const sndClose = new Audio('./bookclose.mp3');
+        const sndPage = new Audio('./page.mp3');
+
+        // 新しくねこを見つけたかどうかを判定するフラグ
+        let isNewDiscoveryScan = false;
+
         const GOSHUIN_DATA = {
             "mamena": {
                 id: "mamena", area: "kubi", pageNumber: 1, 
@@ -205,12 +213,32 @@
         coverEl.addEventListener('click', () => {
             if(isBookOpen) return;
             isBookOpen = true;
+
+            // 🔊 1. 表紙を開く音を鳴らす
+            sndOpen.currentTime = 0;
+            sndOpen.play().catch(e => console.log('Audio error:', e));
+
             coverEl.classList.remove('flip-close');
             coverEl.classList.add('flip-open');
             
             const innerPage = document.getElementById('inner-page');
             innerPage.style.opacity = '1';
             innerPage.classList.remove('pointer-events-none');
+            
+            // ★ 新しく御朱印を見つけた時の特別な演出
+            if (isNewDiscoveryScan) {
+                setTimeout(() => {
+                    // 🔊 2. 本が開ききったタイミングで「ニャー」と鳴らす
+                    sndCat.currentTime = 0;
+                    sndCat.play().catch(e => console.log('Audio error:', e));
+                    
+                    // 御朱印がジワッと浮かび上がるアニメーションを発動
+                    renderPage(currentPage, true); 
+                    isNewDiscoveryScan = false; // フラグをリセット
+                }, 500); // ページが開くアニメーションの長さに合わせる
+            } else {
+                renderPage(currentPage, false);
+            }
             
             setTimeout(() => {
                 document.getElementById('header-progress').style.opacity = '1';
@@ -220,6 +248,11 @@
 
         function closeBook() {
             isBookOpen = false;
+            
+            // 🔊 3. 表紙を閉じる音を鳴らす
+            sndClose.currentTime = 0;
+            sndClose.play().catch(e => console.log('Audio error:', e));
+
             document.getElementById('header-progress').style.opacity = '0';
             document.getElementById('footer-swipe').style.opacity = '0';
             coverEl.classList.remove('flip-open');
@@ -253,6 +286,10 @@
         function turnPage(newPage, direction) {
             const innerPage = document.getElementById('inner-page');
             
+            // 🔊 4. ページをめくる音を鳴らす
+            sndPage.currentTime = 0;
+            sndPage.play().catch(e => console.log('Audio error:', e));
+
             innerPage.classList.remove('turn-next-out', 'turn-next-in', 'turn-prev-in');
             void innerPage.offsetWidth; 
             
@@ -326,12 +363,13 @@
             const scanId = urlParams.get('cat');
             if (scanId && GOSHUIN_DATA[scanId]) {
                 currentPage = GOSHUIN_DATA[scanId].pageNumber; 
-                setTimeout(() => coverEl.click(), 500);
 
                 if (!unlockedPages.includes(scanId)) {
                     unlockedPages.push(scanId);
                     localStorage.setItem('goshuin_unlocked', JSON.stringify(unlockedPages));
-                    setTimeout(() => renderPage(currentPage, true), 1000); 
+                    
+                    // ★ 新規発見フラグをオンにする
+                    isNewDiscoveryScan = true; 
                 } else {
                     renderPage(currentPage, false);
                 }
@@ -348,7 +386,6 @@
             if (pageData && unlockedPages.includes(pageData.id)) {
                 const animClass = isNewDiscovery ? 'animate-ink' : '';
                 
-                // ★ 修正：画像を flex-1 で縮小し、テキストボタンを画像の下に完全分離して被りを防止 ★
                 content.innerHTML = `
                     <div class="w-full h-full flex flex-col items-center justify-center cursor-pointer pt-6 pb-4 pr-4 pl-2" onclick="openModal('${pageData.id}')">
                         <div class="flex-1 w-full flex items-center justify-center overflow-hidden">
