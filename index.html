@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>島ねこ御朱印帳</title>
+    <title>島ねこ御朱印帳｜まめな食堂</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap" rel="stylesheet">
     <style>
@@ -89,32 +89,49 @@
             100% { opacity: 1; filter: blur(0px); transform: scale(1); }
         }
         .animate-ink { animation: ink-bleed 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+
+        @keyframes stamp-pop {
+            0% { transform: scale(2.2) rotate(-15deg); opacity: 0; }
+            70% { transform: scale(0.95) rotate(-6deg); opacity: 1; }
+            100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+        }
+        .animate-stamp { animation: stamp-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         
         .tategaki { writing-mode: vertical-rl; text-orientation: upright; }
     </style>
 </head>
 <body class="w-full h-screen flex flex-col items-center justify-center p-4 relative" id="body-container">
 
-    <!-- ヘッダー -->
+    <!-- ヘッダー左側：表紙設定 -->
     <div class="absolute top-4 left-4 z-50">
         <button onclick="openSettings()" class="bg-white/80 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm border border-gray-300 active:scale-95">⚙️ 表紙設定</button>
     </div>
+
+    <!-- ヘッダー右側：満願成就ボタン（コンプリート後のみ表示） -->
+    <div id="complete-badge-wrap" class="absolute top-4 right-4 z-50 hidden">
+        <button onclick="openCompleteModal()" class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md border border-orange-300 active:scale-95 animate-bounce">
+            🐾 満願成就
+        </button>
+    </div>
     
-    <div class="absolute top-14 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="header-progress" style="opacity: 0;">
-        <h1 class="text-xl font-bold tracking-widest text-[#3a312a]">
-            久比エリア <span id="progress-text" class="text-3xl text-orange-700 mx-1">0/10</span> <span class="text-sm">巡礼済</span>
+    <!-- 進捗表示 -->
+    <div class="absolute top-12 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="header-progress" style="opacity: 0;">
+        <h1 class="text-lg font-bold tracking-widest text-[#3a312a]">
+            まめな食堂 <span id="progress-text" class="text-3xl text-orange-700 mx-1">0/5</span> <span class="text-sm">巡礼済</span>
         </h1>
     </div>
 
     <!-- 御朱印帳本体 -->
-    <div id="book-container" class="book-wrapper w-full max-w-md aspect-[3/4] relative mt-8">
+    <div id="book-container" class="book-wrapper w-full max-w-md aspect-[3/4] relative mt-6">
         
         <!-- 【表紙】 -->
         <div id="cover-page" class="goshuin-page flex items-center justify-center cursor-pointer shadow-2xl">
             <div id="cover-title-plate" class="w-16 h-4/5 flex items-center justify-center tategaki absolute right-8 top-1/2 transform -translate-y-1/2">
                 <span class="text-3xl font-black text-gray-800 tracking-widest">島ねこ御朱印帳</span>
             </div>
-            <div class="absolute bottom-4 left-8 text-white text-xs bg-black/50 px-3 py-1 rounded-full animate-pulse">タップして開く</div>
+            <div id="cover-tap-badge" class="absolute bottom-5 left-9 text-white text-xs bg-black/55 px-3 py-1.5 rounded-full animate-pulse shadow">
+                タップして開く
+            </div>
         </div>
 
         <!-- 【中身のページ】 -->
@@ -127,9 +144,13 @@
     </div>
 
     <!-- フッター -->
-    <div class="absolute bottom-6 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="footer-swipe" style="opacity: 0;">
-        <p class="text-sm font-bold text-[#5c544d] opacity-70">← スワイプでめくる →</p>
-        <button onclick="closeBook()" class="mt-2 text-xs text-gray-500 bg-white/50 px-3 py-1 rounded-full pointer-events-auto shadow-sm active:scale-95 border border-gray-300">表紙に戻る</button>
+    <div class="absolute bottom-5 left-0 w-full text-center z-10 pointer-events-none transition-opacity duration-300" id="footer-swipe" style="opacity: 0;">
+        <div class="flex items-center justify-center gap-4 mb-2 pointer-events-auto">
+            <button id="btn-prev" onclick="handlePrevClick()" class="text-xs font-bold text-[#5c544d] bg-white/70 px-3 py-1 rounded-full shadow-sm border border-gray-300 active:scale-95">← 前の頁</button>
+            <span id="page-indicator" class="text-xs font-bold text-[#5c544d]">1 / 5</span>
+            <button id="btn-next" onclick="handleNextClick()" class="text-xs font-bold text-[#5c544d] bg-white/70 px-3 py-1 rounded-full shadow-sm border border-gray-300 active:scale-95">次の頁 →</button>
+        </div>
+        <button onclick="closeBook()" class="text-xs text-gray-600 bg-white/60 px-4 py-1 rounded-full pointer-events-auto shadow-sm active:scale-95 border border-gray-300">表紙に戻る</button>
     </div>
 
     <!-- ★ 表紙設定モーダル ★ -->
@@ -147,26 +168,60 @@
 
             <div class="mb-6">
                 <p class="text-xs text-gray-500 font-bold mb-2">テンプレートから選ぶ</p>
-                <div class="flex gap-2 justify-center">
+                <div class="flex gap-3 justify-center">
                     <div onclick="setCoverColor('#637b89')" class="w-12 h-12 bg-[#637b89] rounded cursor-pointer border-2 border-gray-300"></div>
                     <div onclick="setCoverColor('#8b4513')" class="w-12 h-12 bg-[#8b4513] rounded cursor-pointer border-2 border-gray-300"></div>
                     <div onclick="setCoverColor('#b04a5a')" class="w-12 h-12 bg-[#b04a5a] rounded cursor-pointer border-2 border-gray-300"></div>
+                    <div onclick="setCoverColor('#4a6b53')" class="w-12 h-12 bg-[#4a6b53] rounded cursor-pointer border-2 border-gray-300"></div>
                 </div>
             </div>
+
+            <!-- ▼ テスト用コントロール（本番公開時はこのdivごと削除OK） ▼ -->
+            <div class="mb-5 pt-4 border-t border-dashed border-gray-300">
+                <p class="text-[11px] text-gray-400 mb-2">動作確認用メニュー</p>
+                <div class="flex gap-2 justify-center">
+                    <button onclick="debugUnlockAll()" class="text-xs bg-amber-100 text-amber-900 px-3 py-1.5 rounded border border-amber-300 active:scale-95">全解放テスト</button>
+                    <button onclick="debugResetProgress()" class="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded border border-red-300 active:scale-95">進捗リセット</button>
+                </div>
+            </div>
+            <!-- ▲ テスト用コントロールここまで ▲ -->
 
             <button onclick="closeSettings()" class="w-full bg-gray-300 text-gray-800 py-3 rounded-full font-bold active:scale-95">とじる</button>
         </div>
     </div>
 
-    <!-- 歴史解説モーダル -->
+    <!-- 歴史・小話モーダル -->
     <div id="history-modal" class="fixed inset-0 bg-black/70 z-[100] hidden items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity">
         <div class="bg-[#fdfbf7] rounded-xl p-6 w-full max-w-sm shadow-2xl relative border-l-8 border-orange-500">
+            <p id="modal-subtitle" class="text-xs text-orange-700 font-bold mb-1"></p>
             <h2 id="modal-title" class="text-xl font-black text-gray-800 mb-4 border-b-2 border-orange-200 pb-2"></h2>
-            <p id="modal-text" class="text-sm font-medium text-gray-700 leading-relaxed mb-6"></p>
+            <p id="modal-text" class="text-sm font-medium text-gray-700 leading-relaxed mb-5"></p>
             <div id="modal-haru" class="bg-orange-50 p-3 rounded-lg border border-orange-200 hidden">
-                <p id="modal-haru-text" class="text-[13px] font-bold text-orange-800"></p>
+                <p id="modal-haru-text" class="text-[13px] font-bold text-orange-800 leading-relaxed"></p>
             </div>
             <button onclick="closeModal()" class="mt-6 w-full bg-gray-800 text-white py-3 rounded-full font-bold active:scale-95">もどる</button>
+        </div>
+    </div>
+
+    <!-- ★ コンプリート（満願成就）モーダル ★ -->
+    <div id="complete-modal" class="fixed inset-0 bg-black/80 z-[110] hidden items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity">
+        <div class="bg-[#fdfbf7] rounded-xl p-6 w-full max-w-sm shadow-2xl text-center relative border-4 border-double border-orange-700/60">
+            <div class="inline-block border-2 border-red-700 text-red-700 px-3 py-1 text-sm font-black tracking-widest mb-3 animate-stamp">
+                島ねこ巡礼・満願成就
+            </div>
+            <h2 class="text-2xl font-black text-[#3a312a] mb-3">ぜんぶ見つけたニャ！</h2>
+            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+                まめな食堂の島ねこ5匹すべてと出会いました。<br>
+                大崎下島のゆるやかな時間を一緒に過ごしてくれてありがとうニャ。
+            </p>
+            <div class="bg-amber-50/90 border border-amber-200 rounded-lg p-3.5 text-left mb-5">
+                <p class="text-xs font-bold text-orange-800 mb-1">🐾 島ねこからのこっそり案内</p>
+                <p class="text-xs text-gray-700 leading-relaxed">
+                    おなかが落ち着いたら、久比の海辺や御手洗の古い町並みもぶらっと歩いてみてニャ。運がよければ、本物の島ねこがお昼寝してるのに会えるかも…たぶん。
+                </p>
+            </div>
+            <p class="text-[11px] text-gray-500 mb-4">よかったらこの画面を記念にスクショして残してね📷</p>
+            <button onclick="closeCompleteModal()" class="w-full bg-orange-700 text-white py-3 rounded-full font-bold shadow active:scale-95">御朱印帳にもどる</button>
         </div>
     </div>
 
@@ -177,23 +232,93 @@
         const sndClose = new Audio('./bookclose.mp3');
         const sndPage = new Audio('./page.mp3');
 
-        // 新しくねこを見つけたかどうかを判定するフラグ
+        // 新規発見・コンプリート演出用フラグ
         let isNewDiscoveryScan = false;
+        let shouldShowCompleteAfterOpen = false;
 
+        // ==========================================
+        // 5種類の島ねこ御朱印データ
+        // ==========================================
         const GOSHUIN_DATA = {
             "mamena": {
-                id: "mamena", area: "kubi", pageNumber: 1, 
-                image: "./n1.png",
+                id: "mamena",
+                area: "mamena",
+                pageNumber: 1,
+                numberLabel: "島ねこ巡礼 第一号",
+                name: "まめな猫",
+                image: "./mamena.png",
+                hint: "お飲み物を頼むと、グラスの下からひょっこり現れるらしいニャ…",
                 history: {
                     title: "まめな食堂と久比の記憶",
-                    text: "ここ久比地区は、かつて多くの船が行き交い、温かなコミュニティがありました。",
-                    haruMessage: "ハルさんより：「よう来てくれたね。」"
+                    text: "ここ久比（くび）地区は、かつて多くの船が行き交い、温かな暮らしが息づいていた場所です。まめな食堂は、そんな島の賑わいと『あるものを活かす』精神を受け継いで生まれました。<br><br>まずは一杯、ゆっくり喉を潤していってニャ。",
+                    haruMessage: "ハルさんより：「よう来てくれたね。ゆっくりしていってや。」"
+                }
+            },
+            "maneki": {
+                id: "maneki",
+                area: "mamena",
+                pageNumber: 2,
+                numberLabel: "島ねこ巡礼 第二号",
+                name: "招こうとしている猫",
+                image: "./maneki.png",
+                hint: "お会計のあたりで、寝そべりながらお客さんを呼ぼうとしているらしいニャ…",
+                history: {
+                    title: "やる気は（たぶん）ある招き猫",
+                    text: "ちゃんとお客さんを招きたい気持ちはあるけれど、まめな食堂の空気が心地よすぎてつい横になってしまう猫。<br><br>手元の小判と23円のお札は、島で過ごすちょっとした幸せのおすそわけらしいニャ。",
+                    haruMessage: ""
+                }
+            },
+            "annai": {
+                id: "annai",
+                area: "mamena",
+                pageNumber: 3,
+                numberLabel: "島ねこ巡礼 第三号",
+                name: "案内猫",
+                image: "./annaineko.png",
+                hint: "本棚や島のパンフレットが並ぶせまい隙間に、ちんまり挟まっているかもニャ…",
+                history: {
+                    title: "せまいところが落ち着く島案内",
+                    text: "大崎下島には、柑橘の段々畑や昔ながらの町並み、穏やかな瀬戸内の海など見どころがたくさんあります。<br><br>パンフレットのあいだでじっとしながら、次の行き先をこっそり見守っているニャ。",
+                    haruMessage: ""
+                }
+            },
+            "siomati": {
+                id: "siomati",
+                area: "mamena",
+                pageNumber: 4,
+                numberLabel: "島ねこ巡礼 第四号",
+                name: "潮待ち猫",
+                image: "./siomati.png",
+                hint: "明るい窓際で、外の景色を眺めながら一服しているらしいニャ…",
+                history: {
+                    title: "潮待ちの港・御手洗と農船",
+                    text: "江戸時代、大崎下島の御手洗（みたらい）は瀬戸内海を行き交う帆船が『良い風と潮』を待つ港町として栄えました。また、島の人々はみかんを積んだ『農船』で海を渡って畑へ通ったそうです。<br><br>急いでも仕方ないときは、もう一杯お茶を飲んで待つのが島流だニャ。",
+                    haruMessage: ""
+                }
+            },
+            "yadotyou": {
+                id: "yadotyou",
+                area: "mamena",
+                pageNumber: 5,
+                numberLabel: "島ねこ巡礼 第五号",
+                name: "宿帳猫",
+                image: "./yadotyou.png",
+                hint: "食堂の出入口の近くで、大崎下島に来た人のにおいを覚えようとしているらしいニャ…",
+                history: {
+                    title: "船宿の宿帳と、また会う約束",
+                    text: "かつて御手洗の船宿では、全国から訪れた旅人の名前を『宿帳』に書き留めていました。<br><br>文字は書けないけれど、肉球のハンコとにおいで、今日この島へ来てくれたあなたのことをちゃんと覚えているニャ…たぶん。",
+                    haruMessage: ""
                 }
             }
         };
-        const TOTAL_PAGES = 10;
 
-        let unlockedPages = JSON.parse(localStorage.getItem('goshuin_unlocked')) || [];
+        const VALID_IDS = Object.keys(GOSHUIN_DATA);
+        const TOTAL_PAGES = VALID_IDS.length; // 5ページ
+
+        // 過去のテスト用IDなどが残っていても整合性が取れるようにフィルタリング
+        let unlockedPages = (JSON.parse(localStorage.getItem('goshuin_unlocked')) || [])
+            .filter(id => VALID_IDS.includes(id));
+
         let currentPage = 1;
         let isBookOpen = false;
 
@@ -204,14 +329,15 @@
         else if (savedColor) { coverEl.style.backgroundColor = savedColor; }
 
         window.onload = () => {
+            checkNfcScan(); // ★ 先にスキャン判定を行ってから進捗を更新する
             updateProgress();
             renderPage(currentPage, false);
             setupSwipe();
-            checkNfcScan();
+            updateNavButtons();
         };
 
         coverEl.addEventListener('click', () => {
-            if(isBookOpen) return;
+            if (isBookOpen) return;
             isBookOpen = true;
 
             // 🔊 1. 表紙を開く音を鳴らす
@@ -227,15 +353,26 @@
             
             // ★ 新しく御朱印を見つけた時の特別な演出
             if (isNewDiscoveryScan) {
+                const triggerComplete = shouldShowCompleteAfterOpen;
+                isNewDiscoveryScan = false;
+                shouldShowCompleteAfterOpen = false;
+                resetCoverBadge();
+
                 setTimeout(() => {
                     // 🔊 2. 本が開ききったタイミングで「ニャー」と鳴らす
                     sndCat.currentTime = 0;
                     sndCat.play().catch(e => console.log('Audio error:', e));
                     
                     // 御朱印がジワッと浮かび上がるアニメーションを発動
-                    renderPage(currentPage, true); 
-                    isNewDiscoveryScan = false; // フラグをリセット
-                }, 500); // ページが開くアニメーションの長さに合わせる
+                    renderPage(currentPage, true);
+
+                    // ★ 5匹すべて揃った瞬間なら、インクが浮かび上がった後に満願成就モーダルを表示
+                    if (triggerComplete) {
+                        setTimeout(() => {
+                            openCompleteModal();
+                        }, 2700);
+                    }
+                }, 500);
             } else {
                 renderPage(currentPage, false);
             }
@@ -269,7 +406,7 @@
 
             innerPage.addEventListener('touchstart', (e) => { startX = e.changedTouches[0].screenX; });
             innerPage.addEventListener('touchend', (e) => {
-                if(!isBookOpen) return;
+                if (!isBookOpen) return;
                 let endX = e.changedTouches[0].screenX;
                 let diff = startX - endX;
 
@@ -281,6 +418,27 @@
                     closeBook();
                 }
             });
+        }
+
+        function handlePrevClick() {
+            if (!isBookOpen) return;
+            if (currentPage > 1) turnPage(currentPage - 1, 'prev');
+            else closeBook();
+        }
+
+        function handleNextClick() {
+            if (!isBookOpen) return;
+            if (currentPage < TOTAL_PAGES) turnPage(currentPage + 1, 'next');
+        }
+
+        function updateNavButtons() {
+            document.getElementById('page-indicator').innerText = `${currentPage} / ${TOTAL_PAGES}`;
+            const nextBtn = document.getElementById('btn-next');
+            if (currentPage >= TOTAL_PAGES) {
+                nextBtn.classList.add('opacity-40', 'pointer-events-none');
+            } else {
+                nextBtn.classList.remove('opacity-40', 'pointer-events-none');
+            }
         }
 
         function turnPage(newPage, direction) {
@@ -298,12 +456,14 @@
                 setTimeout(() => {
                     currentPage = newPage;
                     renderPage(currentPage, false);
+                    updateNavButtons();
                     innerPage.classList.remove('turn-next-out');
                     innerPage.classList.add('turn-next-in'); 
                 }, 350); 
             } else {
                 currentPage = newPage;
                 renderPage(currentPage, false);
+                updateNavButtons();
                 innerPage.classList.add('turn-prev-in');
             }
         }
@@ -328,9 +488,7 @@
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    
                     const MAX_SIZE = 1600;
-                    
                     let width = img.width; let height = img.height;
                     if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } 
                     else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
@@ -338,7 +496,6 @@
                     ctx.drawImage(img, 0, 0, width, height);
                     
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                    
                     localStorage.setItem('goshuin_cover_image', dataUrl);
                     localStorage.removeItem('goshuin_cover_color');
                     coverEl.style.backgroundImage = `url(${dataUrl})`;
@@ -358,59 +515,148 @@
             closeSettings();
         }
 
+        function resetCoverBadge() {
+            const badge = document.getElementById('cover-tap-badge');
+            badge.innerText = 'タップして開く';
+            badge.className = 'absolute bottom-5 left-9 text-white text-xs bg-black/55 px-3 py-1.5 rounded-full animate-pulse shadow';
+        }
+
         function checkNfcScan() {
             const urlParams = new URLSearchParams(window.location.search);
             const scanId = urlParams.get('cat');
             if (scanId && GOSHUIN_DATA[scanId]) {
-                currentPage = GOSHUIN_DATA[scanId].pageNumber; 
+                currentPage = GOSHUIN_DATA[scanId].pageNumber;
 
                 if (!unlockedPages.includes(scanId)) {
                     unlockedPages.push(scanId);
                     localStorage.setItem('goshuin_unlocked', JSON.stringify(unlockedPages));
-                    
-                    // ★ 新規発見フラグをオンにする
-                    isNewDiscoveryScan = true; 
-                } else {
-                    renderPage(currentPage, false);
+                    isNewDiscoveryScan = true;
+
+                    // 表紙の案内を「新規発見」仕様にする
+                    const badge = document.getElementById('cover-tap-badge');
+                    badge.innerText = `✨ ${GOSHUIN_DATA[scanId].name}を発見！タップして開く`;
+                    badge.className = 'absolute bottom-5 left-9 text-white text-xs bg-orange-600/95 px-3 py-1.5 rounded-full animate-bounce shadow-lg border border-orange-200';
+
+                    // 今回のスキャンで全5種コンプリートしたか判定
+                    if (unlockedPages.length === TOTAL_PAGES) {
+                        shouldShowCompleteAfterOpen = true;
+                    }
                 }
                 window.history.replaceState(null, '', window.location.pathname);
             }
         }
 
+        function getPageDataByNumber(pageNum) {
+            for (const key in GOSHUIN_DATA) {
+                if (GOSHUIN_DATA[key].pageNumber === pageNum) return GOSHUIN_DATA[key];
+            }
+            return null;
+        }
+
         function renderPage(pageNum, isNewDiscovery) {
             const content = document.getElementById('page-content');
             content.innerHTML = '';
-            let pageData = null;
-            for (const key in GOSHUIN_DATA) { if (GOSHUIN_DATA[key].pageNumber === pageNum) pageData = GOSHUIN_DATA[key]; }
+            const pageData = getPageDataByNumber(pageNum);
 
             if (pageData && unlockedPages.includes(pageData.id)) {
                 const animClass = isNewDiscovery ? 'animate-ink' : '';
-                
                 content.innerHTML = `
-                    <div class="w-full h-full flex flex-col items-center justify-center cursor-pointer pt-6 pb-4 pr-4 pl-2" onclick="openModal('${pageData.id}')">
+                    <div class="w-full h-full flex flex-col items-center justify-center cursor-pointer pt-5 pb-4 pr-4 pl-2" onclick="openModal('${pageData.id}')">
                         <div class="flex-1 w-full flex items-center justify-center overflow-hidden">
-                            <img src="${pageData.image}" class="w-[90%] h-[90%] object-contain ink-blend ${animClass} drop-shadow-sm">
+                            <img src="${pageData.image}" alt="${pageData.name}" class="w-[92%] h-[92%] object-contain ink-blend ${animClass} drop-shadow-sm">
                         </div>
-                        <div class="mt-2 bg-black/40 text-white text-[10px] px-3 py-1 rounded-full animate-pulse whitespace-nowrap shrink-0">
+                        <div class="mt-2 bg-black/45 text-white text-[11px] px-3 py-1 rounded-full animate-pulse whitespace-nowrap shrink-0">
                             👆 タップして小話を読む
                         </div>
                     </div>
                 `;
             } else {
-                content.innerHTML = `<div class="w-full h-full flex flex-col items-center justify-center opacity-30"><p class="text-gray-500 text-lg">第 ${pageNum} 頁</p></div>`;
+                // 未取得ページのヒント表示
+                const label = pageData ? pageData.numberLabel : `第 ${pageNum} 頁`;
+                const hintText = pageData ? pageData.hint : 'まだ出会っていない島ねこがいるらしいニャ…';
+                content.innerHTML = `
+                    <div class="w-full h-full flex flex-col items-center justify-center p-6 text-center select-none">
+                        <div class="w-full h-full border-2 border-dashed border-[#c8bfb0] rounded-lg flex flex-col items-center justify-center px-5 py-6 bg-[#f7f2e8]/40">
+                            <p class="text-xs tracking-widest text-[#8c8173] mb-3">${label}</p>
+                            <div class="text-4xl opacity-35 mb-4">🐾</div>
+                            <p class="text-sm font-bold text-[#6e6357] mb-4">まだ出会っていません</p>
+                            <div class="bg-white/70 border border-[#ded6c8] rounded-lg px-4 py-3 shadow-sm">
+                                <p class="text-[11px] text-orange-800/80 font-bold mb-1">ヒント</p>
+                                <p class="text-xs text-[#5c544d] leading-relaxed">${hintText}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
         }
-        function updateProgress() { document.getElementById('progress-text').innerText = `${unlockedPages.length}/${TOTAL_PAGES}`; }
+
+        function updateProgress() {
+            document.getElementById('progress-text').innerText = `${unlockedPages.length}/${TOTAL_PAGES}`;
+            const completeWrap = document.getElementById('complete-badge-wrap');
+            if (unlockedPages.length >= TOTAL_PAGES) {
+                completeWrap.classList.remove('hidden');
+            } else {
+                completeWrap.classList.add('hidden');
+            }
+        }
+
         window.openModal = function(catId) {
-            const data = GOSHUIN_DATA[catId].history; if(!data) return;
+            const cat = GOSHUIN_DATA[catId];
+            if (!cat || !cat.history) return;
+            const data = cat.history;
+
+            document.getElementById('modal-subtitle').innerText = `${cat.numberLabel}｜${cat.name}`;
             document.getElementById('modal-title').innerText = data.title;
             document.getElementById('modal-text').innerHTML = data.text;
-            document.getElementById('history-modal').classList.remove('hidden'); document.getElementById('history-modal').classList.add('flex');
-            setTimeout(() => document.getElementById('history-modal').classList.remove('opacity-0'), 10);
+
+            const haruBox = document.getElementById('modal-haru');
+            const haruText = document.getElementById('modal-haru-text');
+            if (data.haruMessage && data.haruMessage.trim() !== '') {
+                haruText.innerText = data.haruMessage;
+                haruBox.classList.remove('hidden');
+            } else {
+                haruBox.classList.add('hidden');
+            }
+
+            const modal = document.getElementById('history-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
         };
+
         window.closeModal = function() {
-            document.getElementById('history-modal').classList.add('opacity-0');
-            setTimeout(() => { document.getElementById('history-modal').classList.add('hidden'); document.getElementById('history-modal').classList.remove('flex'); }, 300);
+            const modal = document.getElementById('history-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+        };
+
+        window.openCompleteModal = function() {
+            const modal = document.getElementById('complete-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        };
+
+        window.closeCompleteModal = function() {
+            const modal = document.getElementById('complete-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+        };
+
+        // --- 動作確認用関数（本番時は削除OK） ---
+        window.debugUnlockAll = function() {
+            unlockedPages = [...VALID_IDS];
+            localStorage.setItem('goshuin_unlocked', JSON.stringify(unlockedPages));
+            updateProgress();
+            renderPage(currentPage, false);
+            closeSettings();
+            openCompleteModal();
+        };
+
+        window.debugResetProgress = function() {
+            unlockedPages = [];
+            localStorage.removeItem('goshuin_unlocked');
+            updateProgress();
+            renderPage(currentPage, false);
+            closeSettings();
         };
     </script>
 </body>
