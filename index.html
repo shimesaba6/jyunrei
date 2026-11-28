@@ -110,7 +110,7 @@
     <!-- ヘッダー右側：満願成就ボタン（コンプリート後のみ表示） -->
     <div id="complete-badge-wrap" class="absolute top-4 right-4 z-50 hidden">
         <button onclick="openCompleteModal()" class="bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md border border-orange-300 active:scale-95 animate-bounce">
-            🐾 満願成就
+            🔑 満願成就
         </button>
     </div>
     
@@ -205,27 +205,53 @@
 
     <!-- ★ コンプリート（満願成就）モーダル ★ -->
     <div id="complete-modal" class="fixed inset-0 bg-black/80 z-[110] hidden items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity">
-        <div class="bg-[#fdfbf7] rounded-xl p-6 w-full max-w-sm shadow-2xl text-center relative border-4 border-double border-orange-700/60">
-            <div class="inline-block border-2 border-red-700 text-red-700 px-3 py-1 text-sm font-black tracking-widest mb-3 animate-stamp">
+        <div class="bg-[#fdfbf7] rounded-xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto shadow-2xl text-center relative border-4 border-double border-orange-700/60">
+            <div class="inline-block border-2 border-red-700 text-red-700 px-3 py-1 text-sm font-black tracking-widest mb-2 animate-stamp">
                 島ねこ巡礼・満願成就
             </div>
-            <h2 class="text-2xl font-black text-[#3a312a] mb-3">ぜんぶ見つけたニャ！</h2>
-            <p class="text-sm text-gray-700 leading-relaxed mb-4">
+            <h2 class="text-2xl font-black text-[#3a312a] mb-2">ぜんぶ見つけたニャ！</h2>
+            <p class="text-xs text-gray-700 leading-relaxed mb-4">
                 まめな食堂の島ねこ5匹すべてと出会いました。<br>
                 大崎下島のゆるやかな時間を一緒に過ごしてくれてありがとうニャ。
             </p>
-            <div class="bg-amber-50/90 border border-amber-200 rounded-lg p-3.5 text-left mb-5">
+
+            <!-- ▼ ご褒美ボックスの鍵案内 ▼ -->
+            <div class="bg-white border-2 border-orange-400 rounded-xl p-4 mb-4 shadow-sm">
+                <p class="text-xs font-bold text-orange-800 mb-1">🔑 おみやげ箱の鍵ナンバー</p>
+                <div class="bg-[#fdf6ea] border border-orange-200 rounded-lg py-2.5 px-3 my-2">
+                    <span id="lock-code-display" class="text-4xl font-black tracking-[0.25em] text-[#3a312a] pl-[0.25em]">2939</span>
+                </div>
+                <div class="text-left text-xs text-gray-700 leading-relaxed space-y-1.5 mt-3 pt-2.5 border-t border-dashed border-orange-200">
+                    <p>
+                        <span class="font-bold text-orange-800">【開け方】</span>
+                        ダイヤルを <strong id="lock-code-inline" class="text-sm text-[#3a312a]">2939</strong> に合わせるだけで開くニャ。中のコースターなど、お気に入りのおみやげを<strong>1つ</strong>持っていってね！
+                    </p>
+                    <p>
+                        <span class="font-bold text-orange-800">【閉め方】</span>
+                        取り出したら鍵をかけて、次の人のために<strong>数字をバラバラに崩して</strong>おいてニャ。
+                    </p>
+                </div>
+            </div>
+            <!-- ▲ ご褒美ボックスの鍵案内ここまで ▲ -->
+
+            <div class="bg-amber-50/90 border border-amber-200 rounded-lg p-3 text-left mb-4">
                 <p class="text-xs font-bold text-orange-800 mb-1">🐾 島ねこからのこっそり案内</p>
                 <p class="text-xs text-gray-700 leading-relaxed">
                     おなかが落ち着いたら、久比の海辺や御手洗の古い町並みもぶらっと歩いてみてニャ。運がよければ、本物の島ねこがお昼寝してるのに会えるかも…たぶん。
                 </p>
             </div>
-            <p class="text-[11px] text-gray-500 mb-4">よかったらこの画面を記念にスクショして残してね📷</p>
+
+            <p class="text-[11px] text-gray-500 mb-3">右上の「🔑 満願成就」ボタンからいつでも見返せるニャ📷</p>
             <button onclick="closeCompleteModal()" class="w-full bg-orange-700 text-white py-3 rounded-full font-bold shadow active:scale-95">御朱印帳にもどる</button>
         </div>
     </div>
 
     <script>
+        // ==========================================
+        // おみやげ箱のダイヤル暗証番号（変更時はここだけ書き換え）
+        // ==========================================
+        const TREASURE_LOCK_CODE = '2939';
+
         // --- 音声ファイルの準備 ---
         const sndCat = new Audio('./catvoice2.mp3');
         const sndOpen = new Audio('./bookopen.mp3');
@@ -329,6 +355,12 @@
         else if (savedColor) { coverEl.style.backgroundColor = savedColor; }
 
         window.onload = () => {
+            // 鍵番号を画面に反映
+            const lockDisplay = document.getElementById('lock-code-display');
+            const lockInline = document.getElementById('lock-code-inline');
+            if (lockDisplay) lockDisplay.innerText = TREASURE_LOCK_CODE;
+            if (lockInline) lockInline.innerText = TREASURE_LOCK_CODE;
+
             checkNfcScan(); // ★ 先にスキャン判定を行ってから進捗を更新する
             updateProgress();
             renderPage(currentPage, false);
